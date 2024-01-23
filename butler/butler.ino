@@ -1,21 +1,35 @@
 #include <Servo.h>
+#include <IRremote.h>
 
+
+const int DOOROPENER_pin = 9;
+const int RECEIVER_pin = 11;
+
+enum ButlerCommand {
+    OPENDOOR,
+    TURNOFFLIGHTS,
+    IGNORE
+};
 
 Servo dooropener;
-const int DOOROPENER_pin = 9;
+IRrecv irrecv(RECEIVER_pin);
+decode_results message;
+
 int openerposition = 0;
-
-
 
 void setup() {
     Serial.begin(9600);
     initDoorOpener();
+    initIRReceiver();
+}
+
+void initIRReceiver() {
+    IrReceiver.begin(RECEIVER_pin, ENABLE_LED_FEEDBACK);
 }
 
 void loop() {
-    openDoor();
+    listenForDoorBell();
 }
-
 
 void initDoorOpener() {
     dooropener.attach(DOOROPENER_pin);
@@ -33,12 +47,32 @@ void openDoor() {
     }
 }
 
+ButlerCommand IRReceiverAdapter(unsigned long code) {
+    switch (code) {
+        case 0xBA45FF00:
+            return OPENDOOR;
+        default:
+            return IGNORE;
+    }
+}
 
+void listenForDoorBell() {
+    if (IrReceiver.decode()) {
+      // USE NEW 3.x FUNCTIONS
+      IrReceiver.printIRResultShort(&Serial); // Print complete received data in one line
+      IrReceiver.printIRSendUsage(&Serial);   // Print the statement required to send this data
+        // openDoor();
 
-
-
-void listenForDoorBell() {}
-
-void sendNotification() {}
+        ButlerCommand command = IRReceiverAdapter(IrReceiver.decodedIRData.decodedRawData);
+        switch (command) {
+            case OPENDOOR:
+                openDoor();
+                break;
+            default:
+                break;
+        }
+        irrecv.resume();
+    }
+}
 
 void listenForMessages() {}
